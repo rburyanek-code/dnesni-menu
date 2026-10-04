@@ -1,0 +1,64 @@
+<!doctype html><html lang="cs"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#b45309"><title>Dnešní menu</title>
+<style>
+body{margin:0;background:#f5f5f4;font-family:Arial;color:#292524}.app{max-width:620px;margin:auto;padding:18px}.card{background:white;border-radius:24px;padding:22px;box-shadow:0 6px 25px #0001}.ey{color:#b45309;font-weight:bold;letter-spacing:2px;font-size:12px}h1{font-size:30px}.hint,.warn,.preview{padding:15px;border-radius:16px;background:#fafaf9;margin:14px 0;line-height:1.5}.warn{display:none;background:#fff7ed;color:#9a3412}.mic,.btn{width:100%;border:0;border-radius:16px;padding:17px;margin:8px 0;font-size:17px;font-weight:bold}.mic{background:#b45309;color:white}.mic.on{background:#dc2626}.wa{background:#16a34a;color:white}.gray{background:#e7e5e4}.status{text-align:center;color:#b91c1c;font-weight:bold;min-height:22px}.field{margin:14px 0}label{display:block;font-weight:bold;color:#92400e;margin-bottom:6px}input,textarea{width:100%;box-sizing:border-box;border:1px solid #d6d3d1;border-radius:13px;padding:14px;font-size:16px}textarea{min-height:90px}
+</style></head><body><div class="app"><div class="card">
+<div class="ey">ANDROID • HLASOVÉ ZADÁNÍ</div><h1>🍽️ Dnešní menu</h1>
+<p>Jedním diktováním vyplníte celé menu a připravíte zprávu pro WhatsApp.</p>
+<div class="hint"><b>Příklad:</b><br>„Polévka kulajda, předkrm šopský salát, hlavní jídlo kuřecí řízek s bramborovou kaší.“</div>
+<div id="warn" class="warn"><b>⚠️ Chrome nepovolil mikrofon.</b><br><br>Soubor je otevřen jako <b>content://</b>. Prohlížeč z bezpečnostních důvodů nepovolí hlasové rozpoznávání. Použijte mikrofon přímo na klávesnici Androidu do pole níže, nebo stránku otevřete přes HTTPS.</div>
+<button id="mic" class="mic" onclick="dictate()">🎙️ NADIKTOVAT CELÉ MENU</button><div id="status" class="status"></div>
+<div class="field"><label>🎙️ TEXT Z DIKTOVÁNÍ</label><textarea id="voice" placeholder="Klepněte sem a použijte mikrofon na klávesnici Androidu. Potom stiskněte „Rozdělit menu“."></textarea></div>
+<button class="btn gray" onclick="parse(document.getElementById('voice').value)">✂️ ROZDĚLIT MENU Z TEXTU</button>
+<div class="field"><label>🥣 POLÉVKA</label><input id="soup" placeholder="Zde bude polévka"></div>
+<div class="field"><label>🥗 PŘEDKRM</label><input id="starter" placeholder="Zde bude předkrm"></div>
+<div class="field"><label>🍴 HLAVNÍ JÍDLO</label><input id="main" placeholder="Zde bude hlavní jídlo"></div>
+<button class="btn wa" onclick="whatsapp()">📱 ODESLAT DO WHATSAPP</button>
+<button class="btn gray" onclick="copyMsg()">📋 ZKOPÍROVAT ZPRÁVU</button>
+<button class="btn gray" onclick="resetAll()">🔄 VYMAZAT</button>
+<div id="preview" class="preview"></div>
+</div></div>
+<script>
+const $=id=>document.getElementById(id);
+function cap(s){return s?s.trim().charAt(0).toUpperCase()+s.trim().slice(1):''}
+function parse(t){
+ t=t.trim(); $('voice').value=t;
+ const r={
+ soup:/(?:polévka|polevka)\s+(.+?)(?=\s+(?:předkrm|predkrm|hlavní jídlo|hlavni jidlo)\s|$)/i,
+ starter:/(?:předkrm|predkrm)\s+(.+?)(?=\s+(?:polévka|polevka|hlavní jídlo|hlavni jidlo)\s|$)/i,
+ main:/(?:hlavní jídlo|hlavni jidlo)\s+(.+?)(?=\s+(?:polévka|polevka|předkrm|predkrm)\s|$)/i};
+ Object.entries(r).forEach(([k,re])=>{let m=t.match(re);if(m)$(k).value=cap(m[1].replace(/[.,]+$/,''));});
+ update();
+}
+function dictate(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(location.protocol!=='https:'&&location.hostname!=='localhost'){
+  $('warn').style.display='block';$('status').textContent='Tento soubor je otevřen jako content:// – Chrome mikrofon nepovolí.';$('voice').focus();return;
+ }
+ if(!SR){$('warn').style.display='block';$('status').textContent='Hlasové rozpoznávání není dostupné.';return;}
+ const r=new SR();r.lang='cs-CZ';r.interimResults=false;r.continuous=false;
+ r.onstart=()=>{$('mic').classList.add('on');$('mic').textContent='🔴 POSLOUCHÁM…';$('status').textContent='Mluvte nyní…'};
+ r.onresult=e=>{parse(e.results[0][0].transcript);$('status').textContent='Menu bylo rozpoznáno.'};
+ r.onerror=e=>{if(e.error==='not-allowed'){$('warn').style.display='block';$('status').textContent='Chrome nepovolil mikrofon. Použijte HTTPS adresu nebo mikrofon klávesnice.'}else $('status').textContent='Mikrofon: '+e.error};
+ r.onend=()=>{$('mic').classList.remove('on');$('mic').textContent='🎙️ NADIKTOVAT CELÉ MENU'};
+ try{r.start()}catch(e){}
+}
+function msg(){return `🍽️ DNEŠNÍ MENU | ${new Date().toLocaleDateString('cs-CZ')}
+
+🥣 POLÉVKA
+${$('soup').value.trim()||'–'}
+
+🥗 PŘEDKRM
+${$('starter').value.trim()||'–'}
+
+🍴 HLAVNÍ JÍDLO
+${$('main').value.trim()||'–'}
+
+Přejeme dobrou chuť! 🍽️`}
+function update(){$('preview').textContent=msg()}
+function whatsapp(){location.href='https://wa.me/?text='+encodeURIComponent(msg())}
+async function copyMsg(){try{await navigator.clipboard.writeText(msg());$('status').textContent='Zpráva byla zkopírována.'}catch(e){}}
+function resetAll(){['voice','soup','starter','main'].forEach(x=>$(x).value='');$('status').textContent='';update()}
+['voice','soup','starter','main'].forEach(x=>$(x).addEventListener('input',update));update();
+</script></body></html>
